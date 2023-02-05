@@ -9,6 +9,9 @@ import (
 	"bytes"
     "strings"
 	"time"
+	"github.com/joho/godotenv"
+	"os"
+	"crypto/ecdsa"
     "github.com/ethereum/go-ethereum"
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
@@ -27,6 +30,16 @@ type NewBidEventStruct struct{
 	Bidder common.Address
 	BidAmount *big.Int
 	BidSize *big.Int
+}
+
+type NewOrderEventStruct struct{
+	OrderId string
+	BidId *big.Int
+	Bidder common.Address
+	AskId *big.Int
+	Asker common.Address
+	OracleAddress common.Address
+	DataCID string
 }
 
 var asks = []common.Address{}
@@ -60,8 +73,10 @@ func queryContract(client *ethclient.Client, contractAddress common.Address){
     }
 	logNewAskSig := []byte("NewAskEvent(address,uint256,uint256)")
 	logNewBidSig := []byte("NewBidEvent(address,uint256,uint256)")
+	logNewOrderSig := []byte("orderCreatedEvent(bytes,uint256,address,uint256,address,address,string")
 	logNewAskSigHash := crypto.Keccak256Hash(logNewAskSig)
 	logNewBidSigHash := crypto.Keccak256Hash(logNewBidSig)
+	logNewOrderSigHash := crypto.Keccak256Hash(logNewOrderSig)
     for _, vLog := range logs {
 		fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
 		switch vLog.Topics[0].Hex(){
@@ -141,7 +156,27 @@ func queryContract(client *ethclient.Client, contractAddress common.Address){
 				}
 				fmt.Println(res)
 			}
-			 
+		
+		case logNewOrderSigHash.Hex():
+			var OrderEventVar NewOrderEventStruct
+			err := contractAbi.UnpackIntoInterface(&OrderEventVar, "orderCreatedEvent", vLog.Data)
+			if err != nil {
+				log.Fatal(err)
+			}
+			privateVal := os.Getenv("PRIVATE_KEY")
+			privateKey, err := crypto.HexToECDSA(privateVal)
+			if err != nil {
+				log.Fatal(err)
+			}
+			publicKey := privateKey.Public()
+			publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+			if !ok {
+				log.Fatal("Cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+			}
+			fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+			if fromAddress == OrderEventVar.Asker{
+				
+			}
 		}
 
     }
@@ -149,12 +184,20 @@ func queryContract(client *ethclient.Client, contractAddress common.Address){
 }
 
 func main() {
+
+	err := godotenv.Load(".env")
+    if err != nil {
+        log.Fatal("Error loading .env file")
+    }
 	
-    client, err := ethclient.Dial("https://api.hyperspace.node.glif.io/")
+    client, err := ethclient.Dial("https://api.hyperspace.node.glif.io/rpc/v1")
     if err != nil {
         log.Fatal(err)
     }
-	contractAddress := common.HexToAddress("0xDB8d554C03EA59A08793Ee01746b2823DE2ED0d8")
+
+	address := os.Getenv("CONTRACT_ADDRESS")
+	contractAddress := common.HexToAddress(address)
+
 	for{
 		queryContract(client, contractAddress)
 		time.Sleep(90*time.Second)

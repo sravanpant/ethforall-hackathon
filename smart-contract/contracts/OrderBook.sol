@@ -3,8 +3,14 @@ pragma solidity ^0.8.9;
 
 import { MinerAPI } from "@zondax/filecoin-solidity/contracts/v0.8/MinerAPI.sol";
 import { MinerTypes } from "@zondax/filecoin-solidity/contracts/v0.8/types/MinerTypes.sol";
+import { Actor, HyperActor } from "@zondax/filecoin-solidity/contracts/v0.8/utils/Actor.sol";
+import { Misc } from "@zondax/filecoin-solidity/contracts/v0.8/utils/Misc.sol";
+
 
 contract OrderBook{
+
+    uint64 constant DEFAULT_FLAG = 0x00000000;
+    uint64 constant METHOD_SEND = 0;
 
     struct Order {
         bytes orderId;
@@ -104,10 +110,22 @@ contract OrderBook{
         }
     }
 
-    function askBounty(bytes memory _orderId) external{
+    function askBounty(bytes memory _orderId, uint64 _actorId) external{
+        require(orders[_orderId].confirmed == true);
         require(orders[_orderId].bountyClaimed == false);
+        require(orders[_orderId].asker == msg.sender);
         orders[_orderId].bountyClaimed = true;
-        
+        send(_actorId, orders[_orderId].amountFixed);
+    }
+
+    function send(uint64 actorID, uint amount) internal {
+        bytes memory emptyParams = "";
+        delete emptyParams;
+        HyperActor.call_actor_id(METHOD_SEND, amount, DEFAULT_FLAG, Misc.NONE_CODEC, emptyParams, actorID);
+    }
+
+    function getOracles() external view returns(address[] memory, string[] memory){
+        return(oracles, oraclesIP);
     }
 
 }

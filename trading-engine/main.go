@@ -7,6 +7,8 @@ import(
 	"fmt"
 	"context"
 	"crypto/ecdsa"
+	"github.com/joho/godotenv"
+	"os"
 	"github.com/ethereum/go-ethereum/crypto"
 	"log"
 	"math/big"
@@ -147,12 +149,14 @@ func addAsk(context *gin.Context){
 }
 
 func sendOrder(asker string, bidder string, amount int, size int){
-	client, err := ethclient.Dial("https://api.hyperspace.node.glif.io/") 
+	client, err := ethclient.Dial("https://api.hyperspace.node.glif.io/rpc/v1") 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	privateKey, err := crypto.HexToECDSA("56bdc6f5be9d06f132398f70571312861d2edfb58ba0b03ed09618c843c18fa5")
+	privateVal := os.Getenv("PRIVATE_KEY")
+
+	privateKey, err := crypto.HexToECDSA(privateVal)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -185,7 +189,8 @@ func sendOrder(asker string, bidder string, amount int, size int){
 	auth.GasFeeCap = gasPrice
 	auth.GasTipCap = gasPrice
 
-	address := common.HexToAddress("0xDB8d554C03EA59A08793Ee01746b2823DE2ED0d8")
+	contractAddress := os.Getenv("CONTRACT_ADDRESS")
+	address := common.HexToAddress(contractAddress)
 	instance, err := store.NewApi(address, client)
 	if err != nil {
 		log.Fatal(err)
@@ -200,6 +205,10 @@ func sendOrder(asker string, bidder string, amount int, size int){
 }
 
 func main(){
+	err := godotenv.Load(".env")
+    if err != nil {
+        log.Fatal("Error loading .env file")
+    }
 	router:=gin.Default()
 	router.GET("/bids", getBids)
 	router.GET("/asks", getAsks)
