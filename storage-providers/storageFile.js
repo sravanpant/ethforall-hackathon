@@ -7,13 +7,13 @@ const lotusWallet = new LotusWalletProvider(lotusClient);
 
 async function storeFile(){
   try {
-    const importResult = await lotusClient.client.import({
-        Path: process.argv[2],
-        IsCAR: false,
-    });
-    
-    console.log(importResult.Root);
-    const queryOffer = await lotusClient.client.minerQueryOffer('t01129', importResult.Root);
+    const importResult = {
+      Root: {
+        '/': process.argv[2]
+      }
+    }
+    let minerConfig = process.argv[3]
+    const queryOffer = await lotusClient.client.minerQueryOffer(minerConfig, importResult.Root);
     console.log(queryOffer);
     const isActive = importResult.Root["/"] === queryOffer.Root["/"];
     console.log("Provider is active: ", isActive);
@@ -23,7 +23,7 @@ async function storeFile(){
             TransferType: 'graphsync',
             Root: importResult.Root,
           },
-          Miner: 't01129',
+          Miner: minerConfig,
           Wallet: await lotusWallet.getDefaultAddress(),
           EpochPrice: "0",
           MinBlocksDuration: 518400,
