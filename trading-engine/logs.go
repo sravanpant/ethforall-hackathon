@@ -11,22 +11,25 @@ import (
 	"time"
 	"github.com/joho/godotenv"
 	"os"
+	"os/exec"
 	"crypto/ecdsa"
     "github.com/ethereum/go-ethereum"
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/crypto"
     "github.com/ethereum/go-ethereum/ethclient"
-    store "MarketPlace"
+    OrderBook "OrderBook"
 )
 
 type NewAskEventStruct struct{
+	AskID *big.Int
 	Asker common.Address
 	AskAmount *big.Int
 	AskSize *big.Int
 }
 
 type NewBidEventStruct struct{
+	BidID *big.Int
 	Bidder common.Address
 	BidAmount *big.Int
 	BidSize *big.Int
@@ -67,12 +70,12 @@ func queryContract(client *ethclient.Client, contractAddress common.Address){
     if err != nil {
         log.Fatal(err)
     }
-    contractAbi, err := abi.JSON(strings.NewReader(string(store.ApiMetaData.ABI)))
+    contractAbi, err := abi.JSON(strings.NewReader(string(OrderBook.OrderBookABI)))
     if err != nil {
         log.Fatal(err)
     }
-	logNewAskSig := []byte("NewAskEvent(address,uint256,uint256)")
-	logNewBidSig := []byte("NewBidEvent(address,uint256,uint256)")
+	logNewAskSig := []byte("NewAskEvent(uint256,address,uint256,uint256)")
+	logNewBidSig := []byte("NewBidEvent(uint256,address,uint256,uint256)")
 	logNewOrderSig := []byte("orderCreatedEvent(bytes,uint256,address,uint256,address,address,string")
 	logNewAskSigHash := crypto.Keccak256Hash(logNewAskSig)
 	logNewBidSigHash := crypto.Keccak256Hash(logNewBidSig)
@@ -101,7 +104,8 @@ func queryContract(client *ethclient.Client, contractAddress common.Address){
 				fmt.Println(AskEventVar.AskSize) 
 				posturl := "http://localhost:8000/addask"
 				body := []byte(`{
-					"id": "`+AskEventVar.Asker.Hex()+`",
+					"id": `+AskEventVar.AskID.String()+`,
+					"asker": "`+ AskEventVar.Asker.Hex() +`",
 					"amount":`+AskEventVar.AskAmount.String()+`,
 					"size":`+AskEventVar.AskSize.String()+
 				`}`)
@@ -139,7 +143,8 @@ func queryContract(client *ethclient.Client, contractAddress common.Address){
 				fmt.Println(BidEventVar.BidSize)
 				posturl := "http://localhost:8000/addbid"
 				body := []byte(`{
-					"id": "`+BidEventVar.Bidder.Hex()+`",
+					"id": `+BidEventVar.BidID.String()+`,
+					"bidder": "`+BidEventVar.Bidder.Hex()+`",
 					"amount":`+BidEventVar.BidAmount.String()+`,
 					"size":`+BidEventVar.BidSize.String()+
 				`}`)
@@ -175,7 +180,7 @@ func queryContract(client *ethclient.Client, contractAddress common.Address){
 			}
 			fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
 			if fromAddress == OrderEventVar.Asker{
-				
+				cmd := exec.Command("node", "../storage-providers/storageFile.js", OrderEventVar.DataCID)
 			}
 		}
 

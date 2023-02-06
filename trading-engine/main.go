@@ -15,17 +15,19 @@ import(
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	store "MMarketPlace"
+	OrderBook "OrderBook"
 )
 
 type Bid struct{
-	ID string `json:"id"`
+	ID int `json:"id"`
+	Bidder string `json:"bidder"`
 	Amount int `json:"amount"`
 	Size int `json:"size"`
 }
 
 type Ask struct{
-	ID string `json:"id"`
+	ID int `json:"id"`
+	Asker string `json:"asker"`
 	Amount int `json:"amount"`
 	Size int `json:"size"`
 }
@@ -65,7 +67,7 @@ func matchBidOrder(){
 			if b.Amount >= a.Amount{
 				if b.Size == a.Size{
 					fmt.Println("Order created 00x")
-					sendOrder(b.ID, a.ID, a.Amount, b.Size)
+					sendOrder(b.ID, b.Bidder, a.ID, a.Asker, a.Amount, b.Size)
 					asks = append(asks[:j], asks[j+1:]...)
 					askLength--
 					bids = append(bids[:i], bids[i+1:]...)
@@ -73,7 +75,7 @@ func matchBidOrder(){
 					break
 				}else if a.Size > b.Size{
 					fmt.Println("Order created with greater ask size")
-					sendOrder(b.ID, a.ID, a.Amount, b.Size)
+					sendOrder(b.ID, b.Bidder, a.ID, a.Asker, a.Amount, b.Size)
 					asks[j].Size = (a.Size - b.Size)
 					bids = append(bids[:i], bids[i+1:]...)
 					bidLength--
@@ -97,7 +99,7 @@ func matchAskOrder(){
 			if a.Amount <= b.Amount{
 				if b.Size == a.Size{
 					fmt.Println("Order created 00x")
-					sendOrder(b.ID, a.ID, a.Amount, b.Size)
+					sendOrder(b.ID, b.Bidder, a.ID, a.Asker, a.Amount, b.Size)
 					asks = append(asks[:i], asks[i+1:]...)
 					askLength--
 					bids = append(bids[:j], bids[j+1:]...)
@@ -105,7 +107,7 @@ func matchAskOrder(){
 					break
 				}else if a.Size > b.Size{
 					fmt.Println("Order created with greater ask size")
-					sendOrder(b.ID, a.ID, a.Amount, b.Size)
+					sendOrder(b.ID, b.Bidder, a.ID, a.Asker, a.Amount, b.Size)
 					asks[i].Size = (a.Size - b.Size)
 					bids = append(bids[:j], bids[j+1:]...)
 					j--
@@ -148,7 +150,7 @@ func addAsk(context *gin.Context){
 	context.IndentedJSON(http.StatusCreated, newAsk)
 }
 
-func sendOrder(asker string, bidder string, amount int, size int){
+func sendOrder(askID int, asker string, bidID int, bidder string, amount int, size int){
 	client, err := ethclient.Dial("https://api.hyperspace.node.glif.io/rpc/v1") 
 	if err != nil {
 		log.Fatal(err)
@@ -191,12 +193,13 @@ func sendOrder(asker string, bidder string, amount int, size int){
 
 	contractAddress := os.Getenv("CONTRACT_ADDRESS")
 	address := common.HexToAddress(contractAddress)
-	instance, err := store.NewApi(address, client)
+	instance, err := OrderBook.NewOrderbook(address, client)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(asker+bidder, common.HexToAddress(bidder), common.HexToAddress(asker), big.NewInt(int64(amount)), big.NewInt(int64(size)))
-	tx, err := instance.AddOrder(auth, asker+bidder, common.HexToAddress(bidder), common.HexToAddress(asker), big.NewInt(int64(amount)), big.NewInt(int64(size)))
+	orderID := fmt.Sprint(bidder, bidID, asker, askID)
+	bytesOrderID := []byte(orderID)
+	tx, err := instance.ProveOrder(auth, bytesOrderID, big.NewInt(int64(bidID)), big.NewInt(int64(askID)), big.NewInt(int64(amount)), big.NewInt(int64(size)))
 	if err != nil {
 		log.Fatal(err)
 	}
