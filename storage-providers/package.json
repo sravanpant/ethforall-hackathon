@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "filecoin.js": "^0.0.5-alpha"
+    "express": "^4.18.2",
+    "filecoin.js": "^0.0.5-alpha",
+    "multer": "^1.4.5-lts.1"
   }
 }

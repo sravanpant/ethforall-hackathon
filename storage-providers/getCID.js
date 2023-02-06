@@ -17,4 +17,4 @@ async function getDataCID(filepath){
     }
 }
 
-export {getDataCID}
+module.exports  = {getDataCID}
